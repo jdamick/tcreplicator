@@ -1,6 +1,8 @@
 TCReplicator
 ============
 
+Tokyo Cabinet Replicator
+
 This library provides the ability to replicate from a tokyo tyrant instance into
 a local tokyo cabinet.  The replication uses the tyrant library for replication
 and simply extracts the logic of the replicator thread that was previously in

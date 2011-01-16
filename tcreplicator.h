@@ -10,6 +10,10 @@
 
 #include <tculog.h>
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 enum {
   kTCREPLCTR_LOGDEBUG    = 0,
   kTCREPLCTR_LOGINFO     = 1,
@@ -67,6 +71,9 @@ bool tcreplctr_start(TCREPLCTR* replctr, TCADB* tcadb, const char* hostname, uin
 
 /* stop replicator */
 bool tcreplctr_stop(TCREPLCTR* replctr);
-   
+
+#if defined(__cplusplus)
+}
+#endif   
 
 #endif
