@@ -275,9 +275,9 @@ tcrmgr : tcrmgr.o $(LIBRARYFILES)
 
 
 
-tcreplicator.o : tcreplicator.h commons.h
+tcreplicator.o : tcreplicator.h 
 
-tcreplicator_test.o : commons.h tcreplicator.h
+tcreplicator_test.o : tcreplicator.h
 
 
 

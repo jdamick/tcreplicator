@@ -171,6 +171,7 @@ bool tcreplctr_stop(TCREPLCTR* replctr) {
     tculogdel(replctr->ulog);
     replctr->ulog = NULL;
   }
+  return true;
 }
 
 
