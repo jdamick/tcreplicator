@@ -1,0 +1,285 @@
+
+#================================================================
+# Setting Variables
+#================================================================
+
+
+# Generic settings
+SHELL = @SHELL@
+
+# Package information
+PACKAGE = @PACKAGE_NAME@
+VERSION = @PACKAGE_VERSION@
+PACKAGEDIR = $(PACKAGE)-$(VERSION)
+PACKAGETGZ = $(PACKAGE)-$(VERSION).tar.gz
+LIBVER = @MYLIBVER@
+LIBREV = @MYLIBREV@
+PROTVER = @MYPROTVER@
+
+# Targets
+HEADERFILES = @MYHEADERFILES@
+LIBRARYFILES = @MYLIBRARYFILES@
+LIBOBJFILES = @MYLIBOBJFILES@
+COMMANDFILES = @MYCOMMANDFILES@
+SCREXTFILES = @MYSCREXTFILES@
+DOCUMENTFILES = @MYDOCUMENTFILES@
+PCFILES = @MYPCFILES@
+
+# Install destinations
+prefix = @prefix@
+exec_prefix = @exec_prefix@
+datarootdir = @datarootdir@
+INCLUDEDIR = @includedir@
+LIBDIR = @libdir@
+BINDIR = @bindir@
+SBINDIR = @sbindir@
+LIBEXECDIR = @libexecdir@
+DATADIR = @datadir@/$(PACKAGE)
+MAN1DIR = @mandir@/man1
+MAN3DIR = @mandir@/man3
+MAN8DIR = @mandir@/man8
+PCDIR = @libdir@/pkgconfig
+DESTDIR =
+
+# Building configuration
+CC = @CC@
+CPPFLAGS = @MYCPPFLAGS@ \
+  -D_TT_PREFIX="\"$(prefix)\"" -D_TT_INCLUDEDIR="\"$(INCLUDEDIR)\"" \
+  -D_TT_LIBDIR="\"$(LIBDIR)\"" -D_TT_BINDIR="\"$(BINDIR)\"" -D_TT_LIBEXECDIR="\"$(LIBEXECDIR)\"" \
+  -D_TT_APPINC="\"-I$(INCLUDEDIR)\"" -D_TT_APPLIBS="\"-L$(LIBDIR) -ltokyotyrant @LIBS@\""
+CFLAGS = @MYCFLAGS@
+LDFLAGS = @MYLDFLAGS@
+CMDLDFLAGS = @MYCMDLDFLAGS@
+LIBS = @LIBS@
+LDENV = LD_RUN_PATH=/lib:/usr/lib:$(LIBDIR):$(HOME)/lib:/usr/local/lib:@MYRUNPATH@:.
+RUNENV = @MYLDLIBPATHENV@=.:/lib:/usr/lib:$(LIBDIR):$(HOME)/lib:/usr/local/lib:@MYRUNPATH@
+POSTCMD = @MYPOSTCMD@
+
+
+
+#================================================================
+# Suffix rules
+#================================================================
+
+
+.SUFFIXES :
+.SUFFIXES : .c .o
+
+.c.o :
+	$(CC) -c $(CPPFLAGS) $(CFLAGS) $<
+
+
+
+#================================================================
+# Actions
+#================================================================
+
+
+all : $(LIBRARYFILES) $(COMMANDFILES)
+	@$(POSTCMD)
+	@printf '\n'
+	@printf '#================================================================\n'
+	@printf '# Ready to install.\n'
+	@printf '#================================================================\n'
+
+
+clean :
+	rm -rf $(LIBRARYFILES) $(LIBOBJFILES) $(COMMANDFILES) \
+	  *.o a.out check.in check.out gmon.out *.vlog words.tsv \
+	  casket casket-* casket.* *.tch *.tcb *.tcf *.tct *.idx.* \
+	  *.ulog ulog 1978* 1979* *.rts *.pid *~ hoge moge tako ika
+
+
+version :
+	vernum=`expr $(LIBVER)00 + $(LIBREV)` ; \
+	  sed -e 's/_TT_VERSION.*/_TT_VERSION    "$(VERSION)"/' \
+	    -e "s/_TT_LIBVER.*/_TT_LIBVER     $$vernum/" \
+	    -e 's/_TT_PROTVER.*/_TT_PROTVER    "$(PROTVER)"/' ttutil.h > ttutil.h~
+	[ -f ttutil.h~ ] && mv -f ttutil.h~ ttutil.h
+
+
+untabify :
+	ls *.c *.h | while read name ; \
+	  do \
+	    sed -e 's/\t/        /g' -e 's/ *$$//' $$name > $$name~; \
+	    [ -f $$name~ ] && mv -f $$name~ $$name ; \
+	  done
+
+
+install :
+	mkdir -p $(DESTDIR)$(INCLUDEDIR)
+	cp -Rf $(HEADERFILES) $(DESTDIR)$(INCLUDEDIR)
+	mkdir -p $(DESTDIR)$(LIBDIR)
+	cp -Rf $(LIBRARYFILES) $(DESTDIR)$(LIBDIR)
+	mkdir -p $(DESTDIR)$(BINDIR)
+	cp -Rf $(COMMANDFILES) $(DESTDIR)$(BINDIR)
+	mkdir -p $(DESTDIR)$(DATADIR)
+	cp -Rf $(SCREXTFILES) $(DOCUMENTFILES) $(DESTDIR)$(DATADIR)
+	mkdir -p $(DESTDIR)$(PCDIR)
+	cp -Rf $(PCFILES) $(DESTDIR)$(PCDIR)
+	[ "$$UID" == 0 ] && ldconfig || true
+	@printf '\n'
+	@printf '#================================================================\n'
+	@printf '# Done building.\n'
+	@printf '#================================================================\n'
+
+
+install-strip :
+	make DESTDIR=$(DESTDIR) install
+	cd $(DESTDIR)$(BINDIR) && strip $(MYCOMMANDS)
+
+
+uninstall :
+	cd $(DESTDIR)$(INCLUDEDIR) && rm -f $(HEADERFILES)
+	cd $(DESTDIR)$(LIBDIR) && rm -f $(LIBRARYFILES)
+	cd $(DESTDIR)$(BINDIR) && rm -f $(COMMANDFILES)
+	rm -rf $(DESTDIR)$(DATADIR)
+	cd $(DESTDIR)$(PCDIR) && rm -f $(PCFILES)
+	[ "$$UID" == 0 ] && ldconfig || true
+
+
+dist :
+	make version
+	make untabify
+	make distclean
+	cd .. && tar cvf - $(PACKAGEDIR) | gzip -c > $(PACKAGETGZ)
+	sync ; sync
+
+
+distclean : clean
+	cd example && make clean
+	rm -rf Makefile tokyoreplicator.pc config.cache config.log config.status autom4te.cache
+
+
+
+
+check-valgrind :
+	make RUNCMD="valgrind --tool=memcheck --log-file=%p.vlog" check
+	grep ERROR *.vlog | grep -v ' 0 errors' ; true
+	grep 'at exit' *.vlog | grep -v ' 0 bytes' ; true
+
+
+
+words :
+	cat -n /usr/share/dict/words | \
+	  sed -e 's/^ *//' -e 'y/ABCDEFGHIJKLMNOPQRSTUVWXYZ/abcdefghijklmnopqrstuvwxyz/' \
+	    -e 's/^\([0-9]*\)\t\(.*\)/\2\t\1/' > words.tsv
+	./tcrmgr importtsv localhost words.tsv
+
+
+.PHONY : all clean install
+
+
+
+#================================================================
+# Building binaries
+#================================================================
+
+
+libtcreplicator.a : $(LIBOBJFILES)
+	$(AR) $(ARFLAGS) $@ $(LIBOBJFILES)
+
+
+libtcreplicator.so.$(LIBVER).$(LIBREV).0 : $(LIBOBJFILES)
+	if uname -a | egrep -i 'SunOS' > /dev/null ; \
+	  then \
+	    $(CXX) $(CFLAGS) -shared -Wl,-G,-h,libtcreplicator.so.$(LIBVER) -o $@ \
+	      $(LIBOBJFILES) $(LDFLAGS) $(LIBS) ; \
+	  else \
+	    $(CXX) $(CFLAGS) -shared -Wl,-soname,libtcreplicator.so.$(LIBVER) -o $@ \
+	      $(LIBOBJFILES) $(LDFLAGS) $(LIBS) ; \
+	  fi
+
+
+libtcreplicator.so.$(LIBVER) : libtcreplicator.so.$(LIBVER).$(LIBREV).0
+	ln -f -s libtcreplicator.so.$(LIBVER).$(LIBREV).0 $@
+
+
+libtcreplicator.so : libtcreplicator.so.$(LIBVER).$(LIBREV).0
+	ln -f -s libtcreplicator.so.$(LIBVER).$(LIBREV).0 $@
+
+
+libtcreplicator.$(LIBVER).$(LIBREV).0.dylib : $(LIBOBJFILES)
+	$(CXX) $(CFLAGS) -dynamiclib -o $@ \
+	  -install_name $(LIBDIR)/libtcreplicator.$(LIBVER).dylib \
+	  -current_version $(LIBVER).$(LIBREV).0 -compatibility_version $(LIBVER) \
+	  $(LIBOBJFILES) $(LDFLAGS) $(LIBS)
+
+
+libtcreplicator.$(LIBVER).dylib : libtcreplicator.$(LIBVER).$(LIBREV).0.dylib
+	ln -f -s libtcreplicator.$(LIBVER).$(LIBREV).0.dylib $@
+
+
+libtcreplicator.dylib : libtcreplicator.$(LIBVER).$(LIBREV).0.dylib
+	ln -f -s libtcreplicator.$(LIBVER).$(LIBREV).0.dylib $@
+
+
+ttskelmock.so : ttskelmock.o
+	$(CXX) $(CFLAGS) -shared -o $@ $< $(LDFLAGS) $(LIBS)
+
+
+ttskeldir.so : ttskeldir.o
+	$(CXX) $(CFLAGS) -shared -o $@ $< $(LDFLAGS) $(LIBS)
+
+
+ttskelproxy.so : ttskelproxy.o
+	$(CXX) $(CFLAGS) -shared -o $@ $< $(LDFLAGS) $(LIBS)
+
+
+ttskelnull.so : ttskelnull.o
+	$(CXX) $(CFLAGS) -shared -o $@ $< $(LDFLAGS) $(LIBS)
+
+
+ttskelmock.bundle : ttskelmock.o
+	$(CXX) $(CFLAGS) -bundle -flat_namespace -undefined suppress -o $@ $< $(LDFLAGS) $(LIBS)
+
+
+ttskeldir.bundle : ttskeldir.o
+	$(CXX) $(CFLAGS) -bundle -flat_namespace -undefined suppress -o $@ $< $(LDFLAGS) $(LIBS)
+
+
+ttskelproxy.bundle : ttskelproxy.o
+	$(CXX) $(CFLAGS) -bundle -flat_namespace -undefined suppress -o $@ $< $(LDFLAGS) $(LIBS)
+
+
+ttskelnull.bundle : ttskelnull.o
+	$(CXX) $(CFLAGS) -bundle -flat_namespace -undefined suppress -o $@ $< $(LDFLAGS) $(LIBS)
+
+
+tcreplicator_test : tcreplicator_test.o $(LIBRARYFILES)
+	$(LDENV) $(CXX) $(CFLAGS) -o $@ $< $(LDFLAGS) $(CMDLDFLAGS) -ltcreplicator $(LIBS)
+
+
+ttserver : ttserver.o scrext.o $(LIBRARYFILES)
+	$(LDENV) $(CXX) $(CFLAGS) -o $@ $< scrext.o $(LDFLAGS) $(CMDLDFLAGS) -ltokyotyrant $(LIBS)
+
+
+ttulmgr : ttulmgr.o $(LIBRARYFILES)
+	$(LDENV) $(CXX) $(CFLAGS) -o $@ $< $(LDFLAGS) $(CMDLDFLAGS) -ltokyotyrant $(LIBS)
+
+
+ttultest : ttultest.o $(LIBRARYFILES)
+	$(LDENV) $(CXX) $(CFLAGS) -o $@ $< $(LDFLAGS) $(CMDLDFLAGS) -ltokyotyrant $(LIBS)
+
+
+tcrtest : tcrtest.o $(LIBRARYFILES)
+	$(LDENV) $(CXX) $(CFLAGS) -o $@ $< $(LDFLAGS) $(CMDLDFLAGS) -ltokyotyrant $(LIBS)
+
+
+tcrmttest : tcrmttest.o $(LIBRARYFILES)
+	$(LDENV) $(CXX) $(CFLAGS) -o $@ $< $(LDFLAGS) $(CMDLDFLAGS) -ltokyotyrant $(LIBS)
+
+
+tcrmgr : tcrmgr.o $(LIBRARYFILES)
+	$(LDENV) $(CXX) $(CFLAGS) -o $@ $< $(LDFLAGS) $(CMDLDFLAGS) -ltokyotyrant $(LIBS)
+
+
+
+tcreplicator.o : tcreplicator.h commons.h
+
+tcreplicator_test.o : commons.h tcreplicator.h
+
+
+
+
+# END OF FILE
